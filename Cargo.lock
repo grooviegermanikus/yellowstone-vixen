@@ -14279,11 +14279,8 @@ dependencies = [
  "solana-account 3.2.0",
  "solana-accounts-db",
  "solana-genesis-utils",
- "solana-ledger",
  "solana-pubkey 3.0.0",
  "solana-runtime",
- "tar",
- "tempfile",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -14291,7 +14288,6 @@ dependencies = [
  "yellowstone-grpc-proto",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
- "zstd",
 ]
 
 [[package]]
