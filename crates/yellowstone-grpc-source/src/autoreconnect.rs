@@ -3,6 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use async_trait::async_trait;
 use tokio::{sync::mpsc::Sender, task::JoinSet};
 use tokio_util::sync::CancellationToken;
+use tracing::debug;
 use yellowstone_grpc_proto::{
     geyser::{SubscribeRequest, SubscribeUpdate},
     tonic::{transport::ClientTlsConfig, Status},
@@ -36,11 +37,13 @@ impl SourceTrait for YellowstoneGrpcAutoconnectSource {
         let mut tasks_set = JoinSet::new();
 
         for (filter_id, prefilter) in filters.parsers_filters {
+            let filter_id_debug = filter_id.clone();
             let filter = Filters::new(HashMap::from([(filter_id, prefilter)]));
 
             let tx = tx.clone();
 
             let mut subscribe_request: SubscribeRequest = filter.into();
+            debug!("SubscribeRequest for filter_id {}: {:?}", filter_id_debug, subscribe_request);
             if let Some(from_slot) = config.from_slot {
                 subscribe_request.from_slot = Some(from_slot);
             }
