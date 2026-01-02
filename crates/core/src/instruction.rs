@@ -380,3 +380,18 @@ impl<'a> Iterator for VisitAll<'a> {
         }
     }
 }
+
+impl InstructionUpdate {
+    #[inline]
+    pub fn with_patched_data(self, data: Vec<u8>) -> Self {
+
+        InstructionUpdate {
+            program: self.program,
+            accounts: self.accounts,
+            data,
+            shared: self.shared,
+            inner: self.inner,
+        }
+
+    }
+}
