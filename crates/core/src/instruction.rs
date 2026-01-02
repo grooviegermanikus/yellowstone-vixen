@@ -98,7 +98,7 @@ pub struct InstructionShared {
 }
 
 /// A parsed instruction from a transaction update.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InstructionUpdate {
     /// The program ID of the instruction.
     pub program: Pubkey,
@@ -378,20 +378,5 @@ impl<'a> Iterator for VisitAll<'a> {
                 break Some(ix);
             },
         }
-    }
-}
-
-impl InstructionUpdate {
-    #[inline]
-    pub fn with_patched_data(self, data: Vec<u8>) -> Self {
-
-        InstructionUpdate {
-            program: self.program,
-            accounts: self.accounts,
-            data,
-            shared: self.shared,
-            inner: self.inner,
-        }
-
     }
 }
