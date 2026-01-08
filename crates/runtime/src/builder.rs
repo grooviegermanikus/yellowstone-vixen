@@ -27,6 +27,9 @@ pub enum BuilderError {
     /// Two transaction pipelines were registered with the same parser ID.
     #[error("ID collision detected among transaction pipelines")]
     TransactionPipelineCollision,
+    /// Two transaction pipelines were registered with the same parser ID.
+    #[error("ID collision detected among instruction pipelines")]
+    InstructionPipelineCollision,
     /// Two slot pipelines were registered with the same parser ID.
     #[error("ID collision detected among slot pipelines")]
     SlotPipelineCollision,
@@ -215,7 +218,8 @@ impl<S: SourceTrait> RuntimeBuilder<S> {
             );
 
             if pre_existent_parser.is_some() {
-                tracing::warn!("Duplicate parser ID detected: {}", id);
+                // replaces log "Duplicate parser ID detected"
+                return Err(BuilderError::InstructionPipelineCollision);
             }
         }
 
