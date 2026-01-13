@@ -332,6 +332,7 @@ impl InstructionUpdate {
 
                 assign_index_rec(inner, outer_ix_path);
             }
+            outer.ix_path = Some(vec![index_outer]);
 
             if outer.inner.is_empty() {
                 outer.inner = inner;
@@ -339,7 +340,15 @@ impl InstructionUpdate {
                 outer.inner.extend(inner);
             }
 
+
+            outer.visit_all().for_each(|i| {
+                debug_assert!(
+                    i.ix_path.is_some(),
+                    "All inner instructions must have ix_path assigned"
+                );
+            });
         }
+
 
         Ok(())
     }
@@ -385,6 +394,7 @@ impl InstructionUpdate {
             data,
             shared,
             inner: vec![],
+            // needs to be assigned later
             ix_path: None,
         })
     }
