@@ -34,17 +34,8 @@ impl vixen::Handler<TokenProgramInstruction, InstructionUpdate> for Logger {
     async fn handle(&self, value: &TokenProgramInstruction, input: &InstructionUpdate) -> vixen::HandlerResult<()> {
         let sig = Signature::try_from(input.shared.signature.as_slice()).unwrap();
 
-
-        if input.ix_path.is_none() {
-            println!("tx {}: no ix path", sig);
-            println!("  value: {:?}", value);
-            return Ok(());
-        }
-
         let ix_path = input.ix_path.clone().unwrap();
-        if ix_path.len() > 4 {
-            println!("tx {}: {:?}", sig, ix_path);
-        }
+        println!("tx {}: {:?}", sig, ix_path);
 
         Ok(())
     }

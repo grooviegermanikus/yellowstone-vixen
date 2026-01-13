@@ -287,6 +287,8 @@ impl InstructionUpdate {
             outer_instr.ix_path = Some(outer_ix_path.clone());
         }
 
+        // Self::parse_inner_foo(&shared, inner_instructions.clone(), &outer)?;
+
         Self::parse_inner(&shared, inner_instructions, &mut outer)?;
 
         for outer_instr in &outer {
@@ -300,6 +302,32 @@ impl InstructionUpdate {
 
         Ok(outer)
     }
+
+    fn parse_inner_foo(
+        shared: &Arc<InstructionShared>,
+        inner_instructions: Vec<InnerInstructions>,
+        outer: &[Self],
+    ) -> Result<(), ParseError> {
+        let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
+
+        println!("tx {} with total outer {}:", sig, outer.len());
+        for (idx, insn) in inner_instructions.iter().enumerate() {
+            let InnerInstructions {
+                index: index_outer,
+                instructions,
+            } = insn;
+
+            for (idx, i2) in instructions.iter().enumerate() {
+
+                println!(" -> ix {} idx {} sh {:?}", index_outer, idx, i2.stack_height );
+            }
+
+
+        }
+
+        Ok(())
+    }
+
 
     // called once per tx
     fn parse_inner(
@@ -320,7 +348,7 @@ impl InstructionUpdate {
 
             // index of outer instruction which invoked these inner instructions
             // note: saw [2,1] or [4,5,5]
-            println!(" -> ix {}", index_outer);
+            // println!(" -> ix {}", index_outer);
 
             let Some(outer) = index_outer.try_into().ok().and_then(|i: usize| outer.get_mut(i)) else {
                 return Err(ParseError::InvalidInnerInstructionIndex(index_outer));
@@ -373,12 +401,13 @@ impl InstructionUpdate {
                     }
                 }
 
-                let outer_ix_path = IxPath::new_one(index_outer);
+                let path = IxPath::new_one(index_outer);
                 // outer.ix_path = Some(outer_ix_path.clone());
                 for (idx_inner, visit) in inner.iter_mut().enumerate() {
-                    assign_index_rec(visit, &outer_ix_path);
+                    let path_inner = path.push_clone(idx_inner as u32);
                     debug_assert!(visit.ix_path.is_none());
-                    visit.ix_path = Some(outer_ix_path.push_clone(idx_inner as u32) );
+                    visit.ix_path = Some(path_inner.clone());
+                    assign_index_rec(visit, &path_inner);
                 }
             }
 
@@ -388,6 +417,10 @@ impl InstructionUpdate {
                 outer.inner.extend(inner);
             }
 
+
+            for node in outer.visit_all() {
+                // println!("* {:?}", node.ix_path.as_ref().unwrap());
+            }
 
         }
 
