@@ -411,6 +411,26 @@ impl InstructionUpdate {
                 }
             }
 
+            {
+                // depth-first traversal without recursion
+                let mut dq: VecDeque<(&mut InstructionUpdate, u32)> = VecDeque::new();
+
+                dq.extend(inner.iter_mut().map(|ins| (ins, 0)));
+
+                loop {
+                    let Some((cur, level)) = dq.pop_front() else {
+                        break;
+                    };
+                    println!("revisit {:?}", cur.ix_path);
+                    // cur.ix_path = Some(IxPath::new_one(0)); // dummy
+                    for inner in cur.inner.iter_mut().rev() {
+                        dq.push_front((inner, level+1));
+                    }
+                }
+
+
+            }
+
             if outer.inner.is_empty() {
                 outer.inner = inner;
             } else {
