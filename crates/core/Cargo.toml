@@ -11,6 +11,7 @@ readme = "./../../README.md"
 [dependencies]
 bs58.workspace = true
 thiserror.workspace = true
+solana-signature = "3.0"
 yellowstone-grpc-proto = { workspace = true }
 yellowstone-vixen-proto = { workspace = true, optional = true }
 borsh = { workspace = true }

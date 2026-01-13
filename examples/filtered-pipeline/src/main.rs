@@ -8,8 +8,9 @@
 #![allow(clippy::module_name_repetitions)]
 
 use std::{path::PathBuf, str::FromStr};
-
+use std::ops::Index;
 use clap::Parser;
+use solana_signature::Signature;
 use yellowstone_vixen::{
     self as vixen,
     filter_pipeline::FilterPipeline,
@@ -31,7 +32,10 @@ pub struct Logger;
 
 impl vixen::Handler<TokenProgramInstruction, InstructionUpdate> for Logger {
     async fn handle(&self, value: &TokenProgramInstruction, input: &InstructionUpdate) -> vixen::HandlerResult<()> {
-        println!("{value:?}");
+        let sig = Signature::try_from(input.shared.signature.as_slice()).unwrap();
+        println!("tx {}:", sig);
+        println!("  ix_path: {:?}", input.ix_path);
+
         Ok(())
     }
 }

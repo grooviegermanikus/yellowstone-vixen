@@ -1,7 +1,7 @@
 //! Helpers for parsing transaction updates into instructions.
 
 use std::{collections::VecDeque, sync::Arc};
-
+use solana_signature::Signature;
 use yellowstone_grpc_proto::{
     geyser::SubscribeUpdateTransactionInfo,
     prelude::MessageHeader,
@@ -110,6 +110,8 @@ pub struct InstructionUpdate {
     pub shared: Arc<InstructionShared>,
     /// Inner instructions invoked by this instruction.
     pub inner: Vec<InstructionUpdate>,
+    /// The index of this instruction within the transaction, if known.
+    pub ix_path: Option<Vec<u32>>,
 }
 
 /// The keys of the accounts involved in a transaction.
@@ -241,24 +243,47 @@ impl InstructionUpdate {
 
         Self::parse_inner(&shared, inner_instructions, &mut outer)?;
 
+        // print tree
+        for (i, ix) in outer.iter().enumerate() {
+            let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
+            println!("Outer Instruction {} of tx {}", i, sig);
+            for v in ix.visit_all() {
+                println!(" -> Inner Instruction: {:?}", v.program);
+            }
+        }
+
         Ok(outer)
     }
 
+    // called once per tx
     fn parse_inner(
         shared: &Arc<InstructionShared>,
         inner_instructions: Vec<InnerInstructions>,
         outer: &mut [Self],
     ) -> Result<(), ParseError> {
+        let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
+        println!(
+            "Parsing inner instructions for tx {}",
+            sig
+        );
+
+        println!(" -> total outer {}", outer.len());
+
         for insn in inner_instructions {
             let InnerInstructions {
-                index,
+                index: index_outer,
                 instructions,
             } = insn;
 
-            let Some(outer) = index.try_into().ok().and_then(|i: usize| outer.get_mut(i)) else {
-                return Err(ParseError::InvalidInnerInstructionIndex(index));
+            // index of outer instruction which invoked these inner instructions
+            // note: saw [2,1] or [4,5,5]
+            println!(" -> ix {}", index_outer);
+
+            let Some(outer) = index_outer.try_into().ok().and_then(|i: usize| outer.get_mut(i)) else {
+                return Err(ParseError::InvalidInnerInstructionIndex(index_outer));
             };
 
+            // inner instructions 1,2,3,4, ...
             let mut inner = instructions
                 .into_iter()
                 .map(|i| Self::parse_one_inner(Arc::clone(shared), i))
@@ -268,13 +293,22 @@ impl InstructionUpdate {
                 while i > 0 {
                     let parent_idx = i - 1;
                     let Some(height) = inner[parent_idx].1 else {
-                        continue;
+                        // hm, "i" is not touched here - might end in infinite loop?
+                        // continue;
+                        panic!()
                     };
                     while inner
                         .get(i)
                         .and_then(|&(_, h)| h)
-                        .is_some_and(|h| h > height)
+                        .is_some_and(|h| {
+                            // THIS DOES NOT HOLD TRUE: assert!(h >= height, "hight is never smaller");
+                            h > height
+                        })
                     {
+                        println!(
+                            " -> putting inner ix {} under parent ix {}",
+                            i, parent_idx
+                        );
                         let (child, _) = inner.remove(i);
                         inner[parent_idx].0.inner.push(child);
                     }
@@ -282,12 +316,29 @@ impl InstructionUpdate {
                 }
             }
 
-            let inner: Vec<_> = inner.into_iter().map(|(i, _)| i).collect();
+            // put inner instructions under outer instruction but only if the stack height is same
+            let mut inner: Vec<_> = inner.into_iter().map(|(i, _)| i).collect();
+
+            for inner in &mut inner {
+                let outer_ix_path = vec![index_outer]; // TODO use outer index here
+                fn assign_index_rec(cur: &mut InstructionUpdate, path: Vec<u32>) {
+                    cur.ix_path = Some(path.clone());
+                    for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
+                        let mut path = path.clone();
+                        path.push(idx_inner as u32);
+                        assign_index_rec(inner, path);
+                    }
+                }
+
+                assign_index_rec(inner, outer_ix_path);
+            }
+
             if outer.inner.is_empty() {
                 outer.inner = inner;
             } else {
                 outer.inner.extend(inner);
             }
+
         }
 
         Ok(())
@@ -334,6 +385,7 @@ impl InstructionUpdate {
             data,
             shared,
             inner: vec![],
+            ix_path: None,
         })
     }
 
@@ -375,6 +427,7 @@ impl<'a> Iterator for VisitAll<'a> {
                     continue;
                 };
                 d.push_back(ix.inner.iter());
+                println!(" -> depth {}", d.len());
                 break Some(ix);
             },
         }
