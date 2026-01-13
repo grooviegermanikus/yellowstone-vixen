@@ -1,6 +1,7 @@
 //! Helpers for parsing transaction updates into instructions.
 
 use std::{collections::VecDeque, sync::Arc};
+use std::fmt::{Debug, Pointer, Write};
 use solana_signature::Signature;
 use yellowstone_grpc_proto::{
     geyser::SubscribeUpdateTransactionInfo,
@@ -111,7 +112,7 @@ pub struct InstructionUpdate {
     /// Inner instructions invoked by this instruction.
     pub inner: Vec<InstructionUpdate>,
     /// The index of this instruction within the transaction, if known.
-    pub ix_path: Option<Vec<u32>>,
+    pub ix_path: Option<IxPath>,
 }
 
 /// The keys of the accounts involved in a transaction.
@@ -123,6 +124,46 @@ pub struct AccountKeys {
     pub dynamic_rw: Vec<Vec<u8>>,
     /// Resolved readonly account keys.
     pub dynamic_ro: Vec<Vec<u8>>,
+}
+
+#[derive(Clone)]
+pub struct IxPath {
+    // 0-based indices representing the path to the instruction
+    path_idx: Vec<u32>,
+}
+
+impl IxPath {
+    /// Create a new empty instruction path.
+    pub fn new_one(idx: u32) -> Self {
+        let mut path_idx = Vec::with_capacity(4);
+        path_idx.push(idx);
+        Self { path_idx }
+    }
+
+    /// Push a new index onto the instruction path.
+    pub fn push_clone(&self, idx: u32) -> Self {
+        let mut path_idx = self.path_idx.clone();
+        path_idx.push(idx);
+        Self { path_idx }
+    }
+
+    /// Get the current instruction path as a slice.
+    pub fn as_slice(&self) -> &[u32] { &self.path_idx }
+
+    /// Get the length of the instruction path.
+    pub fn len(&self) -> usize { self.path_idx.len() }
+}
+
+impl Debug for IxPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // 1.7
+        let formatted = self.path_idx.iter()
+            .map(|i| (i + 1).to_string())
+            .collect::<Vec<_>>()
+            .join(".");
+
+        f.write_str(&formatted)
+    }
 }
 
 /// Errors that can occur when parsing an account key.
@@ -243,15 +284,6 @@ impl InstructionUpdate {
 
         Self::parse_inner(&shared, inner_instructions, &mut outer)?;
 
-        // print tree
-        for (i, ix) in outer.iter().enumerate() {
-            let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
-            println!("Outer Instruction {} of tx {}", i, sig);
-            for v in ix.visit_all() {
-                println!(" -> Inner Instruction: {:?}", v.program);
-            }
-        }
-
         Ok(outer)
     }
 
@@ -319,20 +351,18 @@ impl InstructionUpdate {
             // put inner instructions under outer instruction but only if the stack height is same
             let mut inner: Vec<_> = inner.into_iter().map(|(i, _)| i).collect();
 
-            for inner in &mut inner {
-                let outer_ix_path = vec![index_outer]; // TODO use outer index here
-                fn assign_index_rec(cur: &mut InstructionUpdate, path: Vec<u32>) {
-                    cur.ix_path = Some(path.clone());
-                    for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
-                        let mut path = path.clone();
-                        path.push(idx_inner as u32);
-                        assign_index_rec(inner, path);
-                    }
+            fn assign_index_rec(cur: &mut InstructionUpdate, path: IxPath) {
+                cur.ix_path = Some(path.clone());
+                for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
+                    let nested = path.push_clone(idx_inner as u32);
+                    assign_index_rec(inner, nested);
                 }
-
-                assign_index_rec(inner, outer_ix_path);
             }
-            outer.ix_path = Some(vec![index_outer]);
+            for visit in &mut inner {
+                let outer_ix_path = IxPath::new_one(index_outer);
+                assign_index_rec(visit, outer_ix_path);
+            }
+            outer.ix_path = Some(IxPath::new_one(index_outer));
 
             if outer.inner.is_empty() {
                 outer.inner = inner;
@@ -437,7 +467,6 @@ impl<'a> Iterator for VisitAll<'a> {
                     continue;
                 };
                 d.push_back(ix.inner.iter());
-                println!(" -> depth {}", d.len());
                 break Some(ix);
             },
         }

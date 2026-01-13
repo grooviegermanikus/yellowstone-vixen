@@ -33,8 +33,9 @@ pub struct Logger;
 impl vixen::Handler<TokenProgramInstruction, InstructionUpdate> for Logger {
     async fn handle(&self, value: &TokenProgramInstruction, input: &InstructionUpdate) -> vixen::HandlerResult<()> {
         let sig = Signature::try_from(input.shared.signature.as_slice()).unwrap();
-        println!("tx {}:", sig);
-        println!("  ix_path: {:?}", input.ix_path);
+        println!("tx {}: {:?}", sig, input.ix_path);
+        // println!("  ix_path: {:?}", input.ix_path);
+        // println!("  depth: {}", input.ix_path.as_ref().map(|p| p.len()).unwrap_or(0));
 
         Ok(())
     }
