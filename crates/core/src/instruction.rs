@@ -413,18 +413,27 @@ impl InstructionUpdate {
 
             {
                 // depth-first traversal without recursion
-                let mut dq: VecDeque<(&mut InstructionUpdate, u32)> = VecDeque::new();
+                let mut dq: VecDeque<(&mut InstructionUpdate, IxPath)> = VecDeque::new();
 
-                dq.extend(inner.iter_mut().map(|ins| (ins, 0)));
+                let outer_ix_path = IxPath::new_one(index_outer);
+
+                for foo in inner.iter_mut().enumerate() {
+                    let (idx_inner, ins) = foo;
+                    let path_inner = outer_ix_path.push_clone(idx_inner as u32);
+                    dq.push_back((ins, path_inner));
+                }
+                // dq.extend(inner.iter_mut().map(|ins| (ins, outer_ix_path)));
 
                 loop {
-                    let Some((cur, level)) = dq.pop_front() else {
+                    let Some((cur, cur_ix_path)) = dq.pop_front() else {
                         break;
                     };
-                    println!("revisit {:?}", cur.ix_path);
+                    println!("revisit {:?}  (cur_ix_path {:?})", cur.ix_path, cur_ix_path);
+                    assert_eq!(cur.ix_path.as_ref().unwrap().as_slice(), cur_ix_path.as_slice());
                     // cur.ix_path = Some(IxPath::new_one(0)); // dummy
-                    for inner in cur.inner.iter_mut().rev() {
-                        dq.push_front((inner, level+1));
+                    for (i2, inner) in cur.inner.iter_mut().enumerate().rev() {
+                        let nested = cur_ix_path.push_clone(i2 as u32);
+                        dq.push_front((inner, nested));
                     }
                 }
 
