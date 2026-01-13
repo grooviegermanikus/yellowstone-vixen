@@ -287,8 +287,6 @@ impl InstructionUpdate {
             outer_instr.ix_path = Some(outer_ix_path.clone());
         }
 
-        // Self::parse_inner_foo(&shared, inner_instructions.clone(), &outer)?;
-
         Self::parse_inner(&shared, inner_instructions, &mut outer)?;
 
         for outer_instr in &outer {
@@ -303,42 +301,12 @@ impl InstructionUpdate {
         Ok(outer)
     }
 
-    fn parse_inner_foo(
-        shared: &Arc<InstructionShared>,
-        inner_instructions: Vec<InnerInstructions>,
-        outer: &[Self],
-    ) -> Result<(), ParseError> {
-        let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
-
-        println!("tx {} with total outer {}:", sig, outer.len());
-        for (idx, insn) in inner_instructions.iter().enumerate() {
-            let InnerInstructions {
-                index: index_outer,
-                instructions,
-            } = insn;
-
-            for (idx, i2) in instructions.iter().enumerate() {
-
-                println!(" -> ix {} idx {} sh {:?}", index_outer, idx, i2.stack_height );
-            }
-
-
-        }
-
-        Ok(())
-    }
-
-
     // called once per tx
     fn parse_inner(
         shared: &Arc<InstructionShared>,
         inner_instructions: Vec<InnerInstructions>,
         outer: &mut [Self],
     ) -> Result<(), ParseError> {
-        let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
-
-        println!(" -> total outer {}", outer.len());
-
 
         for insn in inner_instructions {
             let InnerInstructions {
@@ -346,15 +314,10 @@ impl InstructionUpdate {
                 instructions,
             } = insn;
 
-            // index of outer instruction which invoked these inner instructions
-            // note: saw [2,1] or [4,5,5]
-            // println!(" -> ix {}", index_outer);
-
             let Some(outer) = index_outer.try_into().ok().and_then(|i: usize| outer.get_mut(i)) else {
                 return Err(ParseError::InvalidInnerInstructionIndex(index_outer));
             };
 
-            // inner instructions 1,2,3,4, ...
             let mut inner = instructions
                 .into_iter()
                 .map(|i| Self::parse_one_inner(Arc::clone(shared), i))
@@ -364,22 +327,16 @@ impl InstructionUpdate {
                 while i > 0 {
                     let parent_idx = i - 1;
                     let Some(height) = inner[parent_idx].1 else {
-                        // hm, "i" is not touched here - might end in infinite loop?
-                        // continue;
-                        panic!()
+                        // stack_height missing for old data
+                        continue;
                     };
                     while inner
                         .get(i)
                         .and_then(|&(_, h)| h)
                         .is_some_and(|h| {
-                            // THIS DOES NOT HOLD TRUE: assert!(h >= height, "hight is never smaller");
                             h > height
                         })
                     {
-                        println!(
-                            " -> putting inner ix {} under parent ix {}",
-                            i, parent_idx
-                        );
                         let (child, _) = inner.remove(i);
                         inner[parent_idx].0.inner.push(child);
                     }
@@ -387,29 +344,8 @@ impl InstructionUpdate {
                 }
             }
 
-            // put inner instructions under outer instruction but only if the stack height is same
+            // put inner instructions under outer instruction and nest deeper stack height suggests that
             let mut inner: Vec<_> = inner.into_iter().map(|(i, _)| i).collect();
-
-            // visit tree and assign ix_path
-            {
-                fn assign_index_rec(cur: &mut InstructionUpdate, parent: &IxPath) {
-                    for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
-                        let nested = parent.push_clone(idx_inner as u32);
-                        assign_index_rec(inner, &nested);
-                        debug_assert!(inner.ix_path.is_none());
-                        inner.ix_path = Some(nested);
-                    }
-                }
-
-                let path = IxPath::new_one(index_outer);
-                // outer.ix_path = Some(outer_ix_path.clone());
-                for (idx_inner, visit) in inner.iter_mut().enumerate() {
-                    let path_inner = path.push_clone(idx_inner as u32);
-                    debug_assert!(visit.ix_path.is_none());
-                    visit.ix_path = Some(path_inner.clone());
-                    assign_index_rec(visit, &path_inner);
-                }
-            }
 
             {
                 // depth-first traversal without recursion
@@ -417,26 +353,21 @@ impl InstructionUpdate {
 
                 let outer_ix_path = IxPath::new_one(index_outer);
 
-                for foo in inner.iter_mut().enumerate() {
-                    let (idx_inner, ins) = foo;
+                for (idx_inner, ins_inner) in inner.iter_mut().enumerate() {
                     let path_inner = outer_ix_path.push_clone(idx_inner as u32);
-                    dq.push_back((ins, path_inner));
+                    dq.push_back((ins_inner, path_inner));
                 }
-                // dq.extend(inner.iter_mut().map(|ins| (ins, outer_ix_path)));
 
                 loop {
                     let Some((cur, cur_ix_path)) = dq.pop_front() else {
                         break;
                     };
-                    println!("revisit {:?}  (cur_ix_path {:?})", cur.ix_path, cur_ix_path);
-                    assert_eq!(cur.ix_path.as_ref().unwrap().as_slice(), cur_ix_path.as_slice());
-                    // cur.ix_path = Some(IxPath::new_one(0)); // dummy
-                    for (i2, inner) in cur.inner.iter_mut().enumerate().rev() {
-                        let nested = cur_ix_path.push_clone(i2 as u32);
+                    for (ix, inner) in cur.inner.iter_mut().enumerate().rev() {
+                        let nested = cur_ix_path.push_clone(ix as u32);
                         dq.push_front((inner, nested));
                     }
+                    cur.ix_path = Some(cur_ix_path);
                 }
-
 
             }
 
@@ -444,11 +375,6 @@ impl InstructionUpdate {
                 outer.inner = inner;
             } else {
                 outer.inner.extend(inner);
-            }
-
-
-            for node in outer.visit_all() {
-                // println!("* {:?}", node.ix_path.as_ref().unwrap());
             }
 
         }
