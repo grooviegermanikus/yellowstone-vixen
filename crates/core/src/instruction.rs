@@ -351,18 +351,24 @@ impl InstructionUpdate {
             // put inner instructions under outer instruction but only if the stack height is same
             let mut inner: Vec<_> = inner.into_iter().map(|(i, _)| i).collect();
 
-            fn assign_index_rec(cur: &mut InstructionUpdate, path: IxPath) {
-                cur.ix_path = Some(path.clone());
-                for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
-                    let nested = path.push_clone(idx_inner as u32);
-                    assign_index_rec(inner, nested);
+            // visit tree and assign ix_path
+            {
+                fn assign_index_rec(cur: &mut InstructionUpdate, parent: &IxPath) {
+                    for (idx_inner, inner) in cur.inner.iter_mut().enumerate() {
+                        let nested = parent.push_clone(idx_inner as u32);
+                        assign_index_rec(inner, &nested);
+                        debug_assert!(inner.ix_path.is_none());
+                        inner.ix_path = Some(nested);
+                    }
+                }
+                let outer_ix_path = IxPath::new_one(index_outer);
+                outer.ix_path = Some(outer_ix_path.clone());
+                for (idx_inner, visit) in inner.iter_mut().enumerate() {
+                    assign_index_rec(visit, &outer_ix_path);
+                    debug_assert!(visit.ix_path.is_none());
+                    visit.ix_path = Some(outer_ix_path.push_clone(idx_inner as u32) );
                 }
             }
-            for visit in &mut inner {
-                let outer_ix_path = IxPath::new_one(index_outer);
-                assign_index_rec(visit, outer_ix_path);
-            }
-            outer.ix_path = Some(IxPath::new_one(index_outer));
 
             if outer.inner.is_empty() {
                 outer.inner = inner;
