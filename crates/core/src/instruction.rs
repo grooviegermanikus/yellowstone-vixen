@@ -282,7 +282,21 @@ impl InstructionUpdate {
             .map(|i| Self::parse_one(Arc::clone(&shared), i))
             .collect::<Result<Vec<_>, _>>()?;
 
+        for (index_outer, outer_instr) in outer.iter_mut().enumerate() {
+            let outer_ix_path = IxPath::new_one(index_outer as u32);
+            outer_instr.ix_path = Some(outer_ix_path.clone());
+        }
+
         Self::parse_inner(&shared, inner_instructions, &mut outer)?;
+
+        for outer_instr in &outer {
+            outer_instr.visit_all().for_each(|i| {
+                debug_assert!(
+                    i.ix_path.is_some(),
+                    "All inner instructions must have ix_path assigned"
+                );
+            });
+        }
 
         Ok(outer)
     }
@@ -294,12 +308,9 @@ impl InstructionUpdate {
         outer: &mut [Self],
     ) -> Result<(), ParseError> {
         let sig = Signature::try_from(shared.signature.as_slice()).unwrap();
-        println!(
-            "Parsing inner instructions for tx {}",
-            sig
-        );
 
         println!(" -> total outer {}", outer.len());
+
 
         for insn in inner_instructions {
             let InnerInstructions {
@@ -361,8 +372,9 @@ impl InstructionUpdate {
                         inner.ix_path = Some(nested);
                     }
                 }
+
                 let outer_ix_path = IxPath::new_one(index_outer);
-                outer.ix_path = Some(outer_ix_path.clone());
+                // outer.ix_path = Some(outer_ix_path.clone());
                 for (idx_inner, visit) in inner.iter_mut().enumerate() {
                     assign_index_rec(visit, &outer_ix_path);
                     debug_assert!(visit.ix_path.is_none());
@@ -377,14 +389,7 @@ impl InstructionUpdate {
             }
 
 
-            outer.visit_all().for_each(|i| {
-                debug_assert!(
-                    i.ix_path.is_some(),
-                    "All inner instructions must have ix_path assigned"
-                );
-            });
         }
-
 
         Ok(())
     }
