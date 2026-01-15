@@ -306,6 +306,8 @@ impl InstructionUpdate {
         outer: &mut [Self],
     ) -> Result<(), ParseError> {
 
+        let sig = solana_signature::Signature::try_from(shared.signature.as_slice()).unwrap();
+
         for insn in inner_instructions {
             let InnerInstructions {
                 index: index_outer,
@@ -320,6 +322,15 @@ impl InstructionUpdate {
                 .into_iter()
                 .map(|i| Self::parse_one_inner(Arc::clone(shared), i))
                 .collect::<Result<Vec<_>, _>>()?;
+
+            let stackheights = inner.iter().map(|(a, b)| b.unwrap()).collect::<Vec<_>>();
+            let is_interesting = !stackheights.iter().all(|h| h == &2);
+            if is_interesting {
+                println!("instruction stacking (tx {}): {:?}",
+                         sig, stackheights
+                );
+
+            }
 
             if let Some(mut i) = inner.len().checked_sub(1) {
                 while i > 0 {
@@ -372,6 +383,12 @@ impl InstructionUpdate {
             } else {
                 outer.inner.extend(inner);
             }
+
+            if is_interesting {
+                println!("after attaching path (tx {}): {:?}",
+                         sig, outer.visit_all().skip(1).map(|i| i.path.as_ref().unwrap().clone()).collect::<Vec<_>>());
+            }
+
 
         }
 
