@@ -337,6 +337,10 @@ impl InstructionUpdate {
 
             if let Some(mut i) = inner.len().checked_sub(1) {
                 while i > 0 {
+
+                    assert!(inner[i].0.path.is_none(), "path must not be assigned yet");
+                    inner[i].0.path = Some(newalgo[i].clone());
+
                     let parent_idx = i - 1;
                     let Some(height) = inner[parent_idx].1 else {
                         // stack_height missing for old data
@@ -352,6 +356,7 @@ impl InstructionUpdate {
                     }
                     i -= 1;
                 }
+                inner[0].0.path = Some(newalgo[0].clone());
             }
 
             // put inner instructions under outer instruction and nest deeper stack height suggests that
@@ -376,7 +381,8 @@ impl InstructionUpdate {
                         let nested = cur_ix_path.push_clone(ix as u32);
                         dq.push_front((inner, nested));
                     }
-                    cur.path = Some(cur_ix_path);
+                    // cur.path = Some(cur_ix_path);
+                    assert_eq!(cur.path, Some(cur_ix_path));
                 }
 
             }
