@@ -35,6 +35,7 @@ use yellowstone_vixen_core::{
     instruction::{InstructionShared, InstructionUpdate},
     ProgramParser, Pubkey as VixenPubkey,
 };
+use yellowstone_vixen_core::instruction::IxPath;
 
 //TODO: Look these up from the Vixen.toml config file
 const RPC_ENDPOINT: &str = "https://api.devnet.solana.com";
@@ -160,6 +161,7 @@ impl From<&SerializableInstructionUpdate> for InstructionUpdate {
             data: value.data.clone(),
             shared: Arc::new(InstructionShared::default()),
             inner: value.inner.iter().map(Into::into).collect(),
+            ix_path: Some(IxPath::from(value.ix_index.to_vec())),
         }
     }
 }

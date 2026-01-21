@@ -132,6 +132,14 @@ pub struct IxPath {
     path_idx: Vec<u32>,
 }
 
+impl From<Vec<usize>> for IxPath {
+    fn from(value: Vec<usize>) -> Self { 
+        Self { 
+            path_idx: value.into_iter().map(|i| i as u32).collect()
+        } 
+    }
+}
+
 impl IxPath {
     /// Create a new empty instruction path.
     pub fn new_one(idx: u32) -> Self {
