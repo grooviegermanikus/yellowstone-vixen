@@ -11,8 +11,6 @@
 // TODO: document everything
 #![allow(missing_docs, clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-mod debug_meteora_dbc;
-
 use std::{
     fmt::{Debug, Display},
     fs,
@@ -258,9 +256,9 @@ fn filter_ixs(
         .collect::<Vec<SerializableInstructionUpdate>>()
 }
 
-fn try_from_tx_meta(
+fn try_from_tx_meta<P: ProgramParser>(
     value: EncodedConfirmedTransactionWithStatusMeta,
-    program_id: String,
+    parser: &P,
 ) -> Result<Vec<SerializableInstructionUpdate>, String> {
     let EncodedConfirmedTransactionWithStatusMeta {
         transaction,
@@ -275,6 +273,7 @@ fn try_from_tx_meta(
     let mut inner_ixs: Option<Vec<UiInnerInstructions>> = None;
 
     let mut account_keys: Vec<String> = Vec::new();
+    let program_id = parser.program_id().to_string();
 
     if let EncodedTransaction::Json(tx_data) = transaction {
         if let UiMessage::Raw(raw_message) = tx_data.message {
@@ -436,7 +435,7 @@ async fn fetch_fixture<P: ProgramParser>(
                 .await
                 .map_err(|e| format!("Error fetching tx: {e:?}"))?;
 
-            let instructions = try_from_tx_meta(tx, parser.program_id().to_string())?;
+            let instructions = try_from_tx_meta(tx, parser)?;
 
             Ok(FixtureData::Instructions(instructions))
         },

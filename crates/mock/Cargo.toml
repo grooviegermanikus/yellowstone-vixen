@@ -14,15 +14,8 @@ solana-client.workspace = true
 solana-sdk.workspace = true
 solana-rpc-client-api.workspace = true
 yellowstone-vixen-core = { workspace = true }
-yellowstone-vixen-parser =  { workspace = true }
-yellowstone-vixen-proc-macro = { workspace = true }
-borsh = { version = "1.5.7" }
-tokio = "1.47"
-
 serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
 solana-transaction-status.workspace = true
 futures.workspace = true
-anyhow = "1.0.100"
-hex = "0.4.3"
