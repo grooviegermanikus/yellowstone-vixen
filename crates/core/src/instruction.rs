@@ -160,6 +160,15 @@ impl IxPath {
 
     /// Get the length of the instruction path.
     pub fn len(&self) -> usize { self.path_idx.len() }
+
+    /// Check if this instruction path is a parent of another instruction path.
+    pub fn is_parent_of(&self, other: &IxPath) -> bool {
+        if self.len() >= other.len() {
+            return false;
+        }
+        let same_prefix_len = self.len();
+        other.path_idx[..same_prefix_len] == self.path_idx[..same_prefix_len]
+    }
 }
 
 impl Debug for IxPath {
@@ -477,5 +486,23 @@ impl<'a> Iterator for VisitAll<'a> {
                 break Some(ix);
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_ix_path_parent() {
+        use super::IxPath;
+
+        let p1 = IxPath::from(vec![0, 1]);
+        let p2 = IxPath::from(vec![0, 1, 2]);
+        let p3 = IxPath::from(vec![0, 2]);
+        let p4 = IxPath::from(vec![0, 1, 2, 3]);
+
+        assert!(p1.is_parent_of(&p2));
+        assert!(p1.is_parent_of(&p4));
+        assert!(!p2.is_parent_of(&p1));
+        assert!(!p1.is_parent_of(&p3));
     }
 }
