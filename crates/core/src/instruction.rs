@@ -2,7 +2,6 @@
 
 use std::{collections::VecDeque, sync::Arc};
 use std::fmt::{Debug, Pointer, Write};
-use solana_signature::Signature;
 use yellowstone_grpc_proto::{
     geyser::SubscribeUpdateTransactionInfo,
     prelude::MessageHeader,
@@ -127,6 +126,7 @@ pub struct AccountKeys {
 }
 
 #[derive(Clone)]
+/// A path to an instruction within a transaction, represented as a series of indices.
 pub struct IxPath {
     // 0-based indices representing the path to the instruction
     path_idx: Vec<u32>,
