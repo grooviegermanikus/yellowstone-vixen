@@ -14077,6 +14077,7 @@ dependencies = [
  "serde",
  "solana-signature 3.1.0",
  "thiserror 1.0.69",
+ "yellowstone-grpc-client",
  "yellowstone-grpc-proto",
  "yellowstone-vixen-proto",
 ]

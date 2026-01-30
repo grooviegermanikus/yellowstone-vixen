@@ -26,6 +26,7 @@ use std::{
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::Deserialize;
+pub use yellowstone_grpc_client;
 pub use yellowstone_grpc_proto;
 use yellowstone_grpc_proto::geyser::{
     self, SubscribeRequest, SubscribeRequestFilterAccounts, SubscribeRequestFilterBlocks,
