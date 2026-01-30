@@ -95,8 +95,8 @@ jetstreamer-utils = "0.2"
 warp = "0.3"
 
 yellowstone-fumarole-client = "^0.2.0"
-yellowstone-grpc-client = { version = "9" }
-yellowstone-grpc-proto = { version = "9", default-features = false }
+yellowstone-grpc-client = { version = "10" }
+yellowstone-grpc-proto = { version = "10", default-features = false }
 
 yellowstone-vixen = { path = "crates/runtime", version = "0.6.0-alpha.0" }
 yellowstone-vixen-proc-macro = { path = "crates/proc-macro", version = "0.6.0-alpha.0" }

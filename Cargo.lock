@@ -13991,21 +13991,21 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "uuid",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 9.1.0",
 ]
 
 [[package]]
 name = "yellowstone-grpc-client"
-version = "9.1.0"
+version = "10.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38a9ba079420757406d603cd5f27b8c6f6e94c415c30a43b19ef4a0c4a5ff0d1"
+checksum = "4e3475e3027f8832589b573fb5253a8c304532999b427d3d4c9de6f6912a7162"
 dependencies = [
  "bytes",
  "futures 0.3.31",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "tonic 0.14.2",
  "tonic-health",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
 ]
 
 [[package]]
@@ -14037,6 +14037,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "yellowstone-grpc-proto"
+version = "10.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b515077c7db0e9e0dcc506bc6e7bbd6906fcdc3d4978d7039a23a415af4390b"
+dependencies = [
+ "anyhow",
+ "prost 0.14.1",
+ "prost-types 0.14.1",
+ "protobuf-src",
+ "tonic 0.14.2",
+ "tonic-build 0.14.2",
+ "tonic-prost",
+ "tonic-prost-build",
+]
+
+[[package]]
 name = "yellowstone-vixen"
 version = "0.6.0-alpha.0"
 dependencies = [
@@ -14053,7 +14069,7 @@ dependencies = [
  "topograph",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
 ]
 
@@ -14062,7 +14078,7 @@ name = "yellowstone-vixen-block-meta-parser"
 version = "0.6.0-alpha.0"
 dependencies = [
  "tokio",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
  "yellowstone-vixen-mock",
 ]
@@ -14077,7 +14093,7 @@ dependencies = [
  "serde",
  "solana-signature 3.1.0",
  "thiserror 1.0.69",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-proto",
 ]
 
@@ -14212,7 +14228,7 @@ dependencies = [
  "tokio-util 0.7.17",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14229,7 +14245,7 @@ dependencies = [
  "solana-rpc-client-api",
  "solana-sdk",
  "solana-transaction-status 3.1.4",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
 ]
 
@@ -14298,7 +14314,7 @@ dependencies = [
  "solana-pubkey 3.0.0",
  "tokio",
  "tracing",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14321,7 +14337,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14341,7 +14357,7 @@ dependencies = [
  "spl-type-length-value 0.9.0",
  "thiserror 1.0.69",
  "tokio",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
  "yellowstone-vixen-mock",
  "yellowstone-vixen-parser",
@@ -14362,7 +14378,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
  "yellowstone-vixen-mock",
  "yellowstone-vixen-parser",
@@ -14379,7 +14395,7 @@ dependencies = [
  "spl-stake-pool",
  "thiserror 1.0.69",
  "tokio",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen-core",
  "yellowstone-vixen-mock",
  "yellowstone-vixen-parser",
@@ -14404,7 +14420,7 @@ dependencies = [
  "topograph",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
  "yellowstone-vixen-proto",
@@ -14425,7 +14441,7 @@ dependencies = [
  "tonic 0.12.3",
  "tracing",
  "yellowstone-fumarole-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14446,7 +14462,7 @@ dependencies = [
  "tracing",
  "url 2.5.7",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 10.1.1",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
