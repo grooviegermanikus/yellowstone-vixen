@@ -366,10 +366,11 @@ fn render_enum_oneof(oneof_ir: &OneofIr) -> TokenStream {
                     #(#borsh_deserialize_arms,)*
 
                     _ => {
-                        let parent_ident = format_ident!("{}", oneof_ir.parent_message);
+                        let parent_name = stringify!(#parent_ident);
+
                         return ::core::result::Result::Err(::borsh::io::Error::new(
                             ::borsh::io::ErrorKind::InvalidData,
-                            format!("invalid enum discriminant {} (type {})", disc, parent_ident.to_string())
+                            format!("invalid enum discriminant {disc} (type {parent_name})")
                         ));
                     }
                 };
