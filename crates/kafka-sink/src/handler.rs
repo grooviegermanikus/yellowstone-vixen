@@ -94,7 +94,7 @@ impl vixen::Handler<TransactionUpdate, TransactionUpdate> for BufferingHandler {
                 .await,
         );
 
-        let instructions = match InstructionUpdate::build_from_txn(update) {
+        let instructions = match InstructionUpdate::parse_from_txn(update) {
             Ok(ixs) => ixs,
             Err(e) => {
                 tracing::warn!(?e, slot, tx_index, "Failed to parse instructions");
