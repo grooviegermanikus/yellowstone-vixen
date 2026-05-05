@@ -13803,7 +13803,7 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "tracing-subscriber",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.3.0",
 ]
 
 [[package]]
@@ -13840,14 +13840,13 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "uuid",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.3.0",
 ]
 
 [[package]]
 name = "yellowstone-grpc-client"
 version = "13.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a66894f04139a5c4a2c1108fed68fc3e7efdf4120464ad86e14013c7e2cbeec5"
+source = "git+https://github.com/rpcpool/yellowstone-grpc.git?rev=fea7782#fea778295fd2137c36c41636ea6b10c3c013a9e8"
 dependencies = [
  "arc-swap",
  "bytes",
@@ -13860,7 +13859,21 @@ dependencies = [
  "tonic 0.14.2",
  "tonic-health",
  "tower 0.4.13",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
+]
+
+[[package]]
+name = "yellowstone-grpc-proto"
+version = "12.2.0"
+source = "git+https://github.com/rpcpool/yellowstone-grpc.git?rev=fea7782#fea778295fd2137c36c41636ea6b10c3c013a9e8"
+dependencies = [
+ "anyhow",
+ "prost 0.14.1",
+ "prost-types 0.14.1",
+ "protoc-bin-vendored",
+ "tonic 0.14.2",
+ "tonic-prost",
+ "tonic-prost-build",
 ]
 
 [[package]]
@@ -13895,7 +13908,7 @@ dependencies = [
  "topograph",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen-core",
 ]
 
@@ -13917,7 +13930,7 @@ dependencies = [
  "tracing",
  "yellowstone-block-machine",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
  "yellowstone-vixen-yellowstone-grpc-source",
@@ -13930,7 +13943,7 @@ dependencies = [
  "prost 0.14.1",
  "prost-types 0.14.1",
  "tokio",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen-core",
  "yellowstone-vixen-mock",
  "yellowstone-vixen-proc-macro",
@@ -13963,7 +13976,7 @@ dependencies = [
  "prost-types 0.14.1",
  "serde",
  "thiserror 1.0.69",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen-proto",
 ]
 
@@ -14102,7 +14115,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14138,7 +14151,7 @@ dependencies = [
  "solana-rpc-client-api",
  "solana-sdk",
  "solana-transaction-status",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen-core",
 ]
 
@@ -14209,7 +14222,7 @@ dependencies = [
  "solana-pubkey 3.0.0",
  "tokio",
  "tracing",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14235,7 +14248,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
  "zstd",
@@ -14347,7 +14360,7 @@ dependencies = [
  "tonic 0.14.2",
  "tracing",
  "yellowstone-fumarole-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
@@ -14363,7 +14376,7 @@ dependencies = [
  "tokio",
  "tracing",
  "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
+ "yellowstone-grpc-proto 12.2.0",
  "yellowstone-vixen",
  "yellowstone-vixen-core",
 ]
