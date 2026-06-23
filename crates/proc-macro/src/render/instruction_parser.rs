@@ -699,9 +699,17 @@ pub fn instruction_parser(
                     let events_from_logs = resolve_events_from_logs(ix_update.log_messages());
 
                     if program_events.len() == events_from_logs.len() && events_from_logs.len() > 0 {
-                        println!("DUPLICATE_EVENTS: got same amount ({}) of events from CPI and logs for program {:?}", events_from_logs.len(), yellowstone_vixen_core::Pubkey::new(PROGRAM_ID))
-                    }
+                        println!("DUPLICATE_EVENTS: got same amount ({}) of events from CPI and logs for program {:?}", events_from_logs.len(), yellowstone_vixen_core::Pubkey::new(PROGRAM_ID));
 
+                        // Provide a per-item debug diff to aid investigation.
+                        for (i, (a, b)) in program_events.iter().zip(&events_from_logs).enumerate() {
+                            if a != b {
+                                println!("> DUPLICATE_EVENTS - MISMATCH at index {}: lhs={:?} rhs={:?}", i, a, b);
+                            } else {
+                                println!("> DUPLICATE_EVENTS - SAME at index {}: lhs={:?} rhs={:?}", i, a, b);
+                            }
+                        }
+                    }
 
                     program_events.extend(events_from_logs);
 
