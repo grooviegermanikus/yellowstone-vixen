@@ -706,7 +706,7 @@ pub fn instruction_parser(
                             if a != b {
                                 println!("> DUPLICATE_EVENTS - MISMATCH at index {}: lhs={:?} rhs={:?}", i, a, b);
                             } else {
-                                println!("> DUPLICATE_EVENTS - SAME at index {}: lhs={:?} rhs={:?}", i, a, b);
+                                // println!("> DUPLICATE_EVENTS - SAME at index {}: lhs={:?} rhs={:?}", i, a, b);
                             }
                         }
                     }
