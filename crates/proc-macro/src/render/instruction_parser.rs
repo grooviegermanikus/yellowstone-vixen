@@ -696,7 +696,14 @@ pub fn instruction_parser(
                     }
 
                     // 3. Scan logs for "Program data:" events.
-                    program_events.extend(resolve_events_from_logs(ix_update.log_messages()));
+                    let events_from_logs = resolve_events_from_logs(ix_update.log_messages());
+
+                    if program_events.len() == events_from_logs.len() && events_from_logs.len() > 0 {
+                        println!("DUPLICATE_EVENTS: got same amount ({}) of events from CPI and logs for program {:?}", events_from_logs.len(), PROGRAM_ID)
+                    }
+
+
+                    program_events.extend(events_from_logs);
 
                     if instruction.is_none() && program_events.is_empty() {
                         return Err(ParseError::Filtered);
