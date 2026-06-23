@@ -699,7 +699,7 @@ pub fn instruction_parser(
                     let events_from_logs = resolve_events_from_logs(ix_update.log_messages());
 
                     if program_events.len() == events_from_logs.len() && events_from_logs.len() > 0 {
-                        println!("DUPLICATE_EVENTS: got same amount ({}) of events from CPI and logs for program {:?}", events_from_logs.len(), PROGRAM_ID)
+                        println!("DUPLICATE_EVENTS: got same amount ({}) of events from CPI and logs for program {}", events_from_logs.len(), PROGRAM_ID)
                     }
 
 
