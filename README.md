@@ -60,8 +60,8 @@ pub struct Opts {
 #[derive(Debug)]
 pub struct Logger;
 
-impl<V: std::fmt::Debug + Sync, R: Sync> vixen::Handler<V, R> for Logger {
-    async fn handle(&self, value: &V, _raw: &R) -> vixen::HandlerResult<()> {
+impl<V: std::fmt::Debug + Sync, R: Sync> yellowstone_vixen::Handler<V, R> for Logger {
+    async fn handle(&self, value: &V, _raw: &R) -> yellowstone_vixen::HandlerResult<()> {
         tracing::info!(?value);
         Ok(())
     }
@@ -119,8 +119,8 @@ To use it, add the following dependencies to your `Cargo.toml`:
 ```toml
 [dependencies]
 borsh = "^1.0.0"
-yellowstone-vixen-parser = { version = "0.6.0" }
-yellowstone-vixen-proc-macro = { version = "0.6.0" }
+yellowstone-vixen-parser = { version = "0.7.0" }
+yellowstone-vixen-proc-macro = { version = "0.7.0" }
 ```
 
 Then, import and invoke the macro in your code. Specify the path to your Codama JSON IDL file relative to your crate root:
