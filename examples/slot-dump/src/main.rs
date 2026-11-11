@@ -1,5 +1,5 @@
 //! Subscribe on several yellowstone-grpc servers to all slot statuses (`interslot_updates`),
-//! JUP6 transactions and cbBTC mint account updates, and write them into one CSV.
+//! JUP6 transactions, token-2022 account updates and block metas, and write them into one CSV.
 //! `created_at_us` is the server's stamp; comparing nodes includes their clock offset.
 //!
 //! ```sh
@@ -25,8 +25,8 @@ use yellowstone_grpc_client::GeyserGrpcClient;
 use yellowstone_grpc_proto::{
     geyser::{
         subscribe_update::UpdateOneof, SlotStatus, SubscribeRequest,
-        SubscribeRequestFilterAccounts, SubscribeRequestFilterSlots,
-        SubscribeRequestFilterTransactions,
+        SubscribeRequestFilterAccounts, SubscribeRequestFilterBlocksMeta,
+        SubscribeRequestFilterSlots, SubscribeRequestFilterTransactions,
     },
     tonic::transport::ClientTlsConfig,
 };
@@ -34,7 +34,7 @@ use yellowstone_grpc_proto::{
 const JUP6_PROGRAM: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 const TOKEN2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
-const CSV_HEADER: &str = "type,slot,bank_id,status,created_at_us,node_id,key,index";
+const CSV_HEADER: &str = "type,slot,bank_id,status,parent,key,created_at_us,node_id";
 
 #[derive(Parser)]
 struct Args {
@@ -66,14 +66,17 @@ enum RowKind {
     /// Raw enum value, so a status this proto version does not know still shows up.
     Slot {
         status: i32,
+        parent: Option<u64>,
     },
     Tx {
         signature: Vec<u8>,
-        index: u64,
     },
     Account {
         pubkey: Vec<u8>,
-        write_version: u64,
+    },
+    BlockMeta {
+        parent_slot: u64,
+        blockhash: String,
     },
 }
 
@@ -230,6 +233,10 @@ async fn stream_updates(
                     ..Default::default()
                 },
             )]),
+            blocks_meta: HashMap::from([(
+                "blocks_meta".to_owned(),
+                SubscribeRequestFilterBlocksMeta {},
+            )]),
             ..Default::default()
         };
 
@@ -250,6 +257,7 @@ async fn stream_updates(
                     bank_id: slot.bank_id,
                     kind: RowKind::Slot {
                         status: slot.status,
+                        parent: slot.parent,
                     },
                 },
                 Some(UpdateOneof::Transaction(update)) => {
@@ -264,7 +272,6 @@ async fn stream_updates(
                         bank_id: Some(update.bank_id),
                         kind: RowKind::Tx {
                             signature: info.signature,
-                            index: info.index,
                         },
                     }
                 },
@@ -278,9 +285,18 @@ async fn stream_updates(
                         bank_id: update.bank_id,
                         kind: RowKind::Account {
                             pubkey: info.pubkey,
-                            write_version: info.write_version,
                         },
                     }
+                },
+                Some(UpdateOneof::BlockMeta(meta)) => Row {
+                    node_id,
+                    created_at_us,
+                    slot: meta.slot,
+                    bank_id: Some(meta.bank_id),
+                    kind: RowKind::BlockMeta {
+                        parent_slot: meta.parent_slot,
+                        blockhash: meta.blockhash,
+                    },
                 },
                 _ => continue,
             };
@@ -302,41 +318,48 @@ async fn stream_updates(
 
 /// Example output:
 /// ```text
-/// SLOT,380012345,7,SLOT_CREATED_BANK,1762862400120001,0,,
-/// SLOT,380012345,NO_BANK,SLOT_FIRST_SHRED_RECEIVED,1762862400124001,1,,
-/// TX,380012345,7,,1762862400130512,0,5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXF...,412
-/// ACCOUNT,380012345,7,,1762862400130977,0,cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij,1093
+/// SLOT,380012345,7,SLOT_CREATED_BANK,380012344,,1762862400120001,0
+/// SLOT,380012345,NO_BANK,SLOT_FIRST_SHRED_RECEIVED,,,1762862400124001,1
+/// TX,380012345,7,,,5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXF...,1762862400130512,0
+/// ACC,380012345,7,,,cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij,1762862400130977,0
+/// BLOCKMETA,380012345,7,,380012344,9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin,1762862400412003,0
 /// ```
 fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
-    let (kind, status, key, index) = match &row.kind {
-        RowKind::Slot { status } => {
+    let (kind, status, parent, key) = match &row.kind {
+        RowKind::Slot { status, parent } => {
             let status = SlotStatus::try_from(*status)
                 .map(|s| s.as_str_name().to_owned())
                 .unwrap_or_else(|_| status.to_string());
+            let parent = parent.map(|p| p.to_string()).unwrap_or_default();
 
-            ("SLOT", status, String::new(), String::new())
+            ("SLOT", status, parent, String::new())
         },
-        RowKind::Tx { signature, index } => (
+        RowKind::Tx { signature } => (
             "TX",
             String::new(),
+            String::new(),
             bs58::encode(signature).into_string(),
-            index.to_string(),
         ),
-        RowKind::Account {
-            pubkey,
-            write_version,
-        } => (
+        RowKind::Account { pubkey } => (
             "ACC",
             String::new(),
+            String::new(),
             bs58::encode(pubkey).into_string(),
-            write_version.to_string(),
+        ),
+        RowKind::BlockMeta {
+            parent_slot,
+            blockhash,
+        } => (
+            "BLOCKMETA",
+            String::new(),
+            parent_slot.to_string(),
+            blockhash.clone(),
         ),
     };
 
-    // omitting "index"
     writeln!(
         out,
-        "{kind},{},{},{status},{},{},{key}",
+        "{kind},{},{},{status},{parent},{key},{},{}",
         row.slot,
         row.bank_id
             .map_or_else(|| "NO_BANK".to_owned(), |b| b.to_string()),
