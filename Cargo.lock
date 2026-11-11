@@ -7020,6 +7020,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "shipstern-example-slot-dump"
+version = "0.0.0"
+dependencies = [
+ "clap 4.6.6",
+ "futures-util",
+ "rustls",
+ "tokio",
+ "yellowstone-grpc-client",
+ "yellowstone-grpc-proto",
+]
+
+[[package]]
 name = "shipstern-example-tracing"
 version = "0.0.0"
 dependencies = [

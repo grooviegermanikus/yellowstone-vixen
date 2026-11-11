@@ -1,0 +1,15 @@
+[package]
+name = "shipstern-example-slot-dump"
+description = "Dump intraslot slot updates from several yellowstone-grpc servers into one CSV"
+publish = false
+edition.workspace = true
+license = "MIT"
+repository = "https://github.com/solana-rpc/shipstern"
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+futures-util = { workspace = true }
+rustls = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+yellowstone-grpc-client = { workspace = true }
+yellowstone-grpc-proto = { workspace = true }
