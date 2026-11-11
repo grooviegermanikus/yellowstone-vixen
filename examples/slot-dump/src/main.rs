@@ -11,11 +11,11 @@
 
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{File, OpenOptions},
     io::{BufWriter, Write},
     path::PathBuf,
     process::ExitCode,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use clap::Parser;
@@ -93,6 +93,21 @@ async fn main() -> ExitCode {
     let mut out = BufWriter::new(File::create(&args.out).expect("create output file"));
     writeln!(out, "{CSV_HEADER}").expect("write CSV header");
 
+    // Each stream appends its server's version line, e.g. `dump.csv.txt`.
+    let versions_path = PathBuf::from({
+        let mut path = args.out.clone().into_os_string();
+        path.push(".txt");
+        path
+    });
+    let mut versions = File::create(&versions_path).expect("create versions file");
+    writeln!(
+        versions,
+        "start {}",
+        humantime::format_rfc3339_millis(SystemTime::now())
+    )
+    .expect("write start time");
+    drop(versions);
+
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut streams = JoinSet::new();
 
@@ -104,6 +119,7 @@ async fn main() -> ExitCode {
             node_id,
             endpoint.clone(),
             x_token,
+            versions_path.clone(),
             tx.clone(),
         ));
     }
@@ -141,6 +157,18 @@ async fn main() -> ExitCode {
     out.flush().expect("flush CSV");
     eprintln!("wrote {rows} rows to {}", args.out.display());
 
+    // Append, so the node lines written in between are kept.
+    let mut versions = OpenOptions::new()
+        .append(true)
+        .open(&versions_path)
+        .expect("open versions file");
+    writeln!(
+        versions,
+        "end {}",
+        humantime::format_rfc3339_millis(SystemTime::now())
+    )
+    .expect("write end time");
+
     if !complete {
         eprintln!("a stream ended before the deadline; the capture is incomplete");
         return ExitCode::FAILURE;
@@ -154,11 +182,12 @@ async fn stream_updates(
     node_id: usize,
     endpoint: String,
     x_token: Option<String>,
+    versions_path: PathBuf,
     tx: mpsc::UnboundedSender<Row>,
 ) {
     let result = async {
         // Keepalive surfaces a silently dropped connection as a stream error.
-        let mut client = GeyserGrpcClient::build_from_shared(endpoint)?
+        let mut client = GeyserGrpcClient::build_from_shared(endpoint.clone())?
             .x_token(x_token)?
             .connect_timeout(Duration::from_secs(10))
             .http2_keep_alive_interval(Duration::from_secs(10))
@@ -170,6 +199,10 @@ async fn stream_updates(
 
         let version = client.get_version().await?.version;
         eprintln!("node_id {node_id}: version {version}");
+
+        // One short append per node, so the lines of concurrent nodes do not interleave.
+        let mut versions = OpenOptions::new().append(true).open(&versions_path)?;
+        writeln!(versions, "node_id {node_id} {endpoint} {version}")?;
 
         let request = SubscribeRequest {
             // 3400 per minute

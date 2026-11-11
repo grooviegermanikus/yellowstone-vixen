@@ -10,6 +10,7 @@ repository = "https://github.com/solana-rpc/shipstern"
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures-util = { workspace = true }
+humantime = "2.4.0"
 rustls = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
 yellowstone-grpc-client = { workspace = true }

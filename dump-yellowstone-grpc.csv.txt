@@ -1,0 +1,4 @@
+start 2026-11-11T12:20:21.119Z
+node_id 0 https://jupiter-backend.rpcpool.com/ {"version":{"package":"yellowstone-grpc-geyser","version":"17.0.0-rc9+solana.4.4.0","proto":"14.0.1","solana":"4.4.0","git":"eb3a1b4","rustc":"1.98.1","buildts":"2026-10-30T19:19:50.162095162Z"},"extra":{"hostname":"fra282"}}
+node_id 1 https://laserstream-mainnet-fra.helius-rpc.com {"version":{"package":"richat","version":"2.1.0","proto":"6.0.0,9.0.1,12.5.0","proto_richat":"2.0.0","solana":"4.0.1","git":"dba81a79","rustc":"1.91.0","buildts":"2026-11-10T18:37:32.540181014Z"},"extra":{"hostname":"laserstream-prod-mainnet-fra-worker-2"}}
+end 2026-11-11T12:20:26.120Z
