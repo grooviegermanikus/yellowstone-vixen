@@ -168,7 +168,11 @@ async fn stream_updates(
             .connect()
             .await?;
 
+        let version = client.get_version().await?.version;
+        eprintln!("node_id {node_id}: version {version}");
+
         let request = SubscribeRequest {
+            // 3400 per minute
             slots: HashMap::from([(
                 "slots".to_owned(),
                 SubscribeRequestFilterSlots {
@@ -176,6 +180,7 @@ async fn stream_updates(
                     interslot_updates: Some(true),
                 },
             )]),
+            // 3900 per minute
             transactions: HashMap::from([(
                 "jup6".to_owned(),
                 SubscribeRequestFilterTransactions {
@@ -184,6 +189,7 @@ async fn stream_updates(
                     ..Default::default()
                 },
             )]),
+            // 98000 per minute
             accounts: HashMap::from([(
                 "token2022_accounts".to_owned(),
                 SubscribeRequestFilterAccounts {
@@ -287,7 +293,7 @@ fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
             pubkey,
             write_version,
         } => (
-            "ACCOUNT",
+            "ACC",
             String::new(),
             bs58::encode(pubkey).into_string(),
             write_version.to_string(),
