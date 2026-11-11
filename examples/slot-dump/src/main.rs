@@ -1,7 +1,6 @@
-//! Subscribe to all slot statuses (`interslot_updates`) on several yellowstone-grpc
-//! servers and write every update into one CSV, for a fixed duration.
-//! `recv_ts_us` is the local wall clock on receipt, `created_at_us` the server's stamp;
-//! comparing the two includes clock offset between the hosts.
+//! Subscribe on several yellowstone-grpc servers to all slot statuses (`interslot_updates`),
+//! JUP6 transactions and cbBTC mint account updates, and write them into one CSV.
+//! `created_at_us` is the server's stamp; comparing nodes includes their clock offset.
 //!
 //! ```sh
 //! cargo run -p shipstern-example-slot-dump -- \
@@ -16,7 +15,7 @@ use std::{
     io::{BufWriter, Write},
     path::PathBuf,
     process::ExitCode,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::Duration,
 };
 
 use clap::Parser;
@@ -25,12 +24,17 @@ use tokio::{sync::mpsc, task::JoinSet};
 use yellowstone_grpc_client::GeyserGrpcClient;
 use yellowstone_grpc_proto::{
     geyser::{
-        subscribe_update::UpdateOneof, SlotStatus, SubscribeRequest, SubscribeRequestFilterSlots,
+        subscribe_update::UpdateOneof, SlotStatus, SubscribeRequest,
+        SubscribeRequestFilterAccounts, SubscribeRequestFilterSlots,
+        SubscribeRequestFilterTransactions,
     },
     tonic::transport::ClientTlsConfig,
 };
 
-const CSV_HEADER: &str = "slot,bank_id,status,recv_ts_us,created_at_us,node_id,parent,dead_error";
+const JUP6_PROGRAM: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+const TOKEN2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+
+const CSV_HEADER: &str = "type,slot,bank_id,status,created_at_us,node_id,key,index";
 
 #[derive(Parser)]
 struct Args {
@@ -52,13 +56,25 @@ struct Args {
 
 struct Row {
     node_id: usize,
-    // recv_ts_us: u128,
     created_at_us: Option<i64>,
     slot: u64,
     bank_id: Option<u64>,
-    parent: Option<u64>,
+    kind: RowKind,
+}
+
+enum RowKind {
     /// Raw enum value, so a status this proto version does not know still shows up.
-    status: i32,
+    Slot {
+        status: i32,
+    },
+    Tx {
+        signature: Vec<u8>,
+        index: u64,
+    },
+    Account {
+        pubkey: Vec<u8>,
+        write_version: u64,
+    },
 }
 
 #[tokio::main]
@@ -84,7 +100,12 @@ async fn main() -> ExitCode {
         let x_token = args.x_token.get(node_id).filter(|t| !t.is_empty()).cloned();
 
         eprintln!("node_id {node_id} = {endpoint}");
-        streams.spawn(stream_slots(node_id, endpoint.clone(), x_token, tx.clone()));
+        streams.spawn(stream_updates(
+            node_id,
+            endpoint.clone(),
+            x_token,
+            tx.clone(),
+        ));
     }
     drop(tx);
 
@@ -128,8 +149,8 @@ async fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Stream slot updates from one server into `tx` until the stream ends or the receiver is gone.
-async fn stream_slots(
+/// Stream updates from one server into `tx` until the stream ends or the receiver is gone.
+async fn stream_updates(
     node_id: usize,
     endpoint: String,
     x_token: Option<String>,
@@ -143,6 +164,7 @@ async fn stream_slots(
             .http2_keep_alive_interval(Duration::from_secs(10))
             .keep_alive_timeout(Duration::from_secs(5))
             .tls_config(ClientTlsConfig::new().with_native_roots())?
+            .max_decoding_message_size(usize::MAX)
             .connect()
             .await?;
 
@@ -154,6 +176,21 @@ async fn stream_slots(
                     interslot_updates: Some(true),
                 },
             )]),
+            transactions: HashMap::from([(
+                "jup6".to_owned(),
+                SubscribeRequestFilterTransactions {
+                    vote: Some(false),
+                    account_include: vec![JUP6_PROGRAM.to_owned()],
+                    ..Default::default()
+                },
+            )]),
+            accounts: HashMap::from([(
+                "token2022_accounts".to_owned(),
+                SubscribeRequestFilterAccounts {
+                    owner: vec![TOKEN2022_PROGRAM.to_string()],
+                    ..Default::default()
+                },
+            )]),
             ..Default::default()
         };
 
@@ -162,24 +199,51 @@ async fn stream_slots(
 
         while let Some(update) = stream.next().await {
             let update = update?;
-            let recv_ts_us = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("clock after epoch")
-                .as_micros();
+            let created_at_us = update
+                .created_at
+                .map(|ts| ts.seconds * 1_000_000 + i64::from(ts.nanos) / 1_000);
 
-            let Some(UpdateOneof::Slot(slot)) = update.update_oneof else {
-                continue;
-            };
+            let row = match update.update_oneof {
+                Some(UpdateOneof::Slot(slot)) => Row {
+                    node_id,
+                    created_at_us,
+                    slot: slot.slot,
+                    bank_id: slot.bank_id,
+                    kind: RowKind::Slot {
+                        status: slot.status,
+                    },
+                },
+                Some(UpdateOneof::Transaction(update)) => {
+                    let Some(info) = update.transaction else {
+                        continue;
+                    };
 
-            let row = Row {
-                node_id,
-                created_at_us: update
-                    .created_at
-                    .map(|ts| ts.seconds * 1_000_000 + i64::from(ts.nanos) / 1_000),
-                slot: slot.slot,
-                bank_id: slot.bank_id,
-                parent: slot.parent,
-                status: slot.status,
+                    Row {
+                        node_id,
+                        created_at_us,
+                        slot: update.slot,
+                        bank_id: Some(update.bank_id),
+                        kind: RowKind::Tx {
+                            signature: info.signature,
+                            index: info.index,
+                        },
+                    }
+                },
+                Some(UpdateOneof::Account(update)) => {
+                    let Some(info) = update.account else { continue };
+
+                    Row {
+                        node_id,
+                        created_at_us,
+                        slot: update.slot,
+                        bank_id: update.bank_id,
+                        kind: RowKind::Account {
+                            pubkey: info.pubkey,
+                            write_version: info.write_version,
+                        },
+                    }
+                },
+                _ => continue,
             };
 
             if tx.send(row).is_err() {
@@ -199,27 +263,44 @@ async fn stream_slots(
 
 /// Example output:
 /// ```text
-/// 380012345,7,SLOT_CREATED_BANK,1762862400123456,1762862400120001,0,380012344,
-/// 380012345,,SLOT_FIRST_SHRED_RECEIVED,1762862400124001,,1,,
+/// SLOT,380012345,7,SLOT_CREATED_BANK,1762862400120001,0,,
+/// SLOT,380012345,NO_BANK,SLOT_FIRST_SHRED_RECEIVED,1762862400124001,1,,
+/// TX,380012345,7,,1762862400130512,0,5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXF...,412
+/// ACCOUNT,380012345,7,,1762862400130977,0,cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij,1093
 /// ```
 fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
-    let status = SlotStatus::try_from(row.status)
-        .map(|s| s.as_str_name().to_owned())
-        .unwrap_or_else(|_| row.status.to_string());
+    let (kind, status, key, index) = match &row.kind {
+        RowKind::Slot { status } => {
+            let status = SlotStatus::try_from(*status)
+                .map(|s| s.as_str_name().to_owned())
+                .unwrap_or_else(|_| status.to_string());
+
+            ("SLOT", status, String::new(), String::new())
+        },
+        RowKind::Tx { signature, index } => (
+            "TX",
+            String::new(),
+            bs58::encode(signature).into_string(),
+            index.to_string(),
+        ),
+        RowKind::Account {
+            pubkey,
+            write_version,
+        } => (
+            "ACCOUNT",
+            String::new(),
+            bs58::encode(pubkey).into_string(),
+            write_version.to_string(),
+        ),
+    };
 
     writeln!(
         out,
-        // slot,bank_id,status,created_at_us,node_id
-        "SLOT,{},{},{},{},{}",
+        "{kind},{},{},{status},{},{},{key},{index}",
         row.slot,
-        row.bank_id.map(|b| b.to_string())
-            .unwrap_or("NO_BANK".to_string()),
-        status,
-        opt(row.created_at_us),
+        row.bank_id
+            .map_or_else(|| "NO_BANK".to_owned(), |b| b.to_string()),
+        row.created_at_us.map(|v| v.to_string()).unwrap_or_default(),
         row.node_id,
     )
-}
-
-fn opt(v: Option<impl ToString>) -> String {
-    v.map(|v| v.to_string()).unwrap_or_default()
 }

@@ -7023,6 +7023,7 @@ dependencies = [
 name = "shipstern-example-slot-dump"
 version = "0.0.0"
 dependencies = [
+ "bs58",
  "clap 4.6.6",
  "futures-util",
  "rustls",
