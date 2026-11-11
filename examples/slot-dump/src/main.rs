@@ -1,6 +1,6 @@
 //! Subscribe on several yellowstone-grpc servers to all slot statuses (`interslot_updates`),
 //! JUP6 transactions, token-2022 account updates and block metas, and write them into one CSV.
-//! `created_at_us` is the server's stamp; comparing nodes includes their clock offset.
+//! `created_at` is the server's stamp (RFC 3339, UTC, µs); comparing nodes includes their clock offset.
 //!
 //! ```sh
 //! cargo run -p shipstern-example-slot-dump -- \
@@ -34,7 +34,7 @@ use yellowstone_grpc_proto::{
 const JUP6_PROGRAM: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
 const TOKEN2022_PROGRAM: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
-const CSV_HEADER: &str = "type,slot,bank_id,status,parent,key,created_at_us,node_id";
+const CSV_HEADER: &str = "type,slot,bank_id,status,parent,key,created_at,node_id";
 
 #[derive(Parser)]
 struct Args {
@@ -56,7 +56,7 @@ struct Args {
 
 struct Row {
     node_id: usize,
-    created_at_us: Option<i64>,
+    created_at: Option<SystemTime>,
     slot: u64,
     bank_id: Option<u64>,
     kind: RowKind,
@@ -245,14 +245,14 @@ async fn stream_updates(
 
         while let Some(update) = stream.next().await {
             let update = update?;
-            let created_at_us = update
+            let created_at = update
                 .created_at
-                .map(|ts| ts.seconds * 1_000_000 + i64::from(ts.nanos) / 1_000);
+                .and_then(|ts| SystemTime::try_from(ts).ok());
 
             let row = match update.update_oneof {
                 Some(UpdateOneof::Slot(slot)) => Row {
                     node_id,
-                    created_at_us,
+                    created_at,
                     slot: slot.slot,
                     bank_id: slot.bank_id,
                     kind: RowKind::Slot {
@@ -267,7 +267,7 @@ async fn stream_updates(
 
                     Row {
                         node_id,
-                        created_at_us,
+                        created_at,
                         slot: update.slot,
                         bank_id: Some(update.bank_id),
                         kind: RowKind::Tx {
@@ -280,7 +280,7 @@ async fn stream_updates(
 
                     Row {
                         node_id,
-                        created_at_us,
+                        created_at,
                         slot: update.slot,
                         bank_id: update.bank_id,
                         kind: RowKind::Account {
@@ -290,7 +290,7 @@ async fn stream_updates(
                 },
                 Some(UpdateOneof::BlockMeta(meta)) => Row {
                     node_id,
-                    created_at_us,
+                    created_at,
                     slot: meta.slot,
                     bank_id: Some(meta.bank_id),
                     kind: RowKind::BlockMeta {
@@ -318,11 +318,11 @@ async fn stream_updates(
 
 /// Example output:
 /// ```text
-/// SLOT,380012345,7,SLOT_CREATED_BANK,380012344,,1762862400120001,0
-/// SLOT,380012345,NO_BANK,SLOT_FIRST_SHRED_RECEIVED,,,1762862400124001,1
-/// TX,380012345,7,,,5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXF...,1762862400130512,0
-/// ACC,380012345,7,,,cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij,1762862400130977,0
-/// BLOCKMETA,380012345,7,,380012344,9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin,1762862400412003,0
+/// SLOT,380012345,7,SLOT_CREATED_BANK,380012344,,2025-11-11T12:00:00.120001Z,0
+/// SLOT,380012345,NO_BANK,SLOT_FIRST_SHRED_RECEIVED,,,2025-11-11T12:00:00.124001Z,1
+/// TX,380012345,7,,,5h6xBEauJ3PK6SWCZ1PGjBvj8vDdWG3KpwATGy1ARAXF...,2025-11-11T12:00:00.130512Z,0
+/// ACC,380012345,7,,,cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij,2025-11-11T12:00:00.130977Z,0
+/// BLOCKMETA,380012345,7,,380012344,9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin,2025-11-11T12:00:00.412003Z,0
 /// ```
 fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
     let (kind, status, parent, key) = match &row.kind {
@@ -363,7 +363,9 @@ fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
         row.slot,
         row.bank_id
             .map_or_else(|| "NO_BANK".to_owned(), |b| b.to_string()),
-        row.created_at_us.map(|v| v.to_string()).unwrap_or_default(),
+        row.created_at
+            .map(|t| humantime::format_rfc3339_micros(t).to_string())
+            .unwrap_or_default(),
         row.node_id,
     )
 }
