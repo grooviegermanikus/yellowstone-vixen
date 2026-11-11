@@ -30,7 +30,7 @@ use yellowstone_grpc_proto::{
     tonic::transport::ClientTlsConfig,
 };
 
-const CSV_HEADER: &str = "node_id,recv_ts_us,created_at_us,slot,bank_id,parent,status,dead_error";
+const CSV_HEADER: &str = "slot,bank_id,status,recv_ts_us,created_at_us,node_id,parent,dead_error";
 
 #[derive(Parser)]
 struct Args {
@@ -52,14 +52,13 @@ struct Args {
 
 struct Row {
     node_id: usize,
-    recv_ts_us: u128,
+    // recv_ts_us: u128,
     created_at_us: Option<i64>,
     slot: u64,
     bank_id: Option<u64>,
     parent: Option<u64>,
     /// Raw enum value, so a status this proto version does not know still shows up.
     status: i32,
-    dead_error: Option<String>,
 }
 
 #[tokio::main]
@@ -174,7 +173,6 @@ async fn stream_slots(
 
             let row = Row {
                 node_id,
-                recv_ts_us,
                 created_at_us: update
                     .created_at
                     .map(|ts| ts.seconds * 1_000_000 + i64::from(ts.nanos) / 1_000),
@@ -182,7 +180,6 @@ async fn stream_slots(
                 bank_id: slot.bank_id,
                 parent: slot.parent,
                 status: slot.status,
-                dead_error: slot.dead_error,
             };
 
             if tx.send(row).is_err() {
@@ -202,30 +199,24 @@ async fn stream_slots(
 
 /// Example output:
 /// ```text
-/// 0,1762862400123456,1762862400120001,380012345,7,380012344,SLOT_CREATED_BANK,
-/// 1,1762862400124001,,380012345,,,SLOT_FIRST_SHRED_RECEIVED,
+/// 380012345,7,SLOT_CREATED_BANK,1762862400123456,1762862400120001,0,380012344,
+/// 380012345,,SLOT_FIRST_SHRED_RECEIVED,1762862400124001,,1,,
 /// ```
 fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
     let status = SlotStatus::try_from(row.status)
         .map(|s| s.as_str_name().to_owned())
         .unwrap_or_else(|_| row.status.to_string());
 
-    // Quoted per RFC 4180, since the error text can contain commas.
-    let dead_error = row
-        .dead_error
-        .as_deref()
-        .map(|e| format!("\"{}\"", e.replace('"', "\"\"")))
-        .unwrap_or_default();
-
     writeln!(
         out,
-        "{},{},{},{},{},{},{status},{dead_error}",
-        row.node_id,
-        row.recv_ts_us,
-        opt(row.created_at_us),
+        // slot,bank_id,status,created_at_us,node_id
+        "SLOT,{},{},{},{},{}",
         row.slot,
-        opt(row.bank_id),
-        opt(row.parent),
+        row.bank_id.map(|b| b.to_string())
+            .unwrap_or("NO_BANK".to_string()),
+        status,
+        opt(row.created_at_us),
+        row.node_id,
     )
 }
 
