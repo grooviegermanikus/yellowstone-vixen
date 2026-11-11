@@ -300,9 +300,10 @@ fn write_row(out: &mut impl Write, row: &Row) -> std::io::Result<()> {
         ),
     };
 
+    // omitting "index"
     writeln!(
         out,
-        "{kind},{},{},{status},{},{},{key},{index}",
+        "{kind},{},{},{status},{},{},{key}",
         row.slot,
         row.bank_id
             .map_or_else(|| "NO_BANK".to_owned(), |b| b.to_string()),
